@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: todo_postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secretpassword}
+      POSTGRES_DB: ${DB_NAME:-todolist_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql   # <-- TAMBAHKAN BARIS INI
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d todolist_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    container_name: todo_web_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: ${PORT:-3000}
+      DB_HOST: db
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-secretpassword}
+      DB_NAME: ${DB_NAME:-todolist_db}
+      DB_PORT: ${DB_PORT:-5432}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
