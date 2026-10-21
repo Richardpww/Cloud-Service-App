@@ -1,0 +1,96 @@
+
+body {
+    background: #f5f7fb;
+    color: #202b42;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    max-width: 820px;
+}
+
+.eyebrow {
+    color: #6579d8;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -2px;
+}
+
+h1 span {
+    color: #6579d8;
+}
+
+.task-form,
+.task-card {
+    border: 1px solid #e7eaf2;
+    border-radius: 14px;
+    box-shadow: 0 5px 20px rgba(32, 43, 66, 0.04);
+}
+
+.form-control {
+    padding: 11px 13px;
+    border-color: #e0e4ed;
+}
+
+.form-control:focus {
+    border-color: #6579d8;
+    box-shadow: 0 0 0 3px rgba(101, 121, 216, 0.12);
+}
+
+.btn-primary {
+    background: #6579d8;
+    border-color: #6579d8;
+}
+
+.btn-primary:hover {
+    background: #5065c4;
+    border-color: #5065c4;
+}
+
+.task-card .card-body {
+    padding: 18px;
+}
+
+.task-title {
+    overflow-wrap: anywhere;
+}
+
+.completed .task-title {
+    color: #8a93a5;
+    text-decoration: line-through;
+}
+
+.empty-state {
+    background: white;
+    border: 1px dashed #ccd2df;
+    border-radius: 12px;
+    color: #737f94;
+    padding: 28px;
+    text-align: center;
+}
+
+@media (max-width: 576px) {
+    h1 {
+        font-size: 2.4rem;
+    }
+
+    .task-card .card-body {
+        flex-wrap: wrap;
+    }
+
+    .task-card .card-body > .flex-grow-1 {
+        min-width: 0;
+    }
+
+    .task-card .card-body > div:last-child {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
