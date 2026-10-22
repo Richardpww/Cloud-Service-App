@@ -1,0 +1,76 @@
+# =====================================================================
+# docker-compose.yml - menjalankan seluruh aplikasi (web + database) sekaligus
+#   docker compose up -d --build   -> bangun dan jalankan
+#   docker compose down            -> hentikan (data TETAP ada di volume)
+#   docker compose down -v         -> hentikan DAN hapus semua data
+# Nilai ${VAR:-default} dibaca dari file .env; bila tidak ada, dipakai nilai default setelah ":-".
+# =====================================================================
+
+# Nama project dikunci agar nama container, network, dan volume tidak bergantung pada nama folder.
+name: taskhub
+
+services:
+
+  # ---------- Layanan 1: database PostgreSQL ----------
+  db:
+    image: postgres:15-alpine          # image resmi dari Docker Hub
+    container_name: taskhub_db
+    restart: unless-stopped            # hidup lagi otomatis bila crash atau laptop restart
+    environment:                       # dipakai image Postgres saat pertama kali membuat database
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secretpassword}
+      POSTGRES_DB: ${DB_NAME:-taskhub_db}
+      TZ: ${TZ:-Asia/Jakarta}          # zona waktu, memengaruhi CURRENT_DATE (tenggat "hari ini")
+    ports:
+      # Format host:container. Diikat ke 127.0.0.1 sehingga hanya laptop ini yang bisa mengakses
+      # database; perangkat lain di jaringan tidak bisa.
+      - "127.0.0.1:${DB_HOST_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data                              # VOLUME: data database, bertahan walau container dihapus
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro        # skema awal, dijalankan hanya saat volume masih kosong
+    networks: [taskhub_net]
+    healthcheck:                       # "sehat" = Postgres sudah siap menerima koneksi
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ---------- Layanan 2: aplikasi web (Node.js + Express) ----------
+  app:
+    build: .                           # dibangun dari Dockerfile di folder ini
+    image: taskhub-app:3.0
+    container_name: taskhub_app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"           # buka http://localhost:3000 di browser
+    environment:
+      PORT: 3000
+      DB_HOST: db                      # hostname = nama service database (DNS internal Docker), BUKAN localhost
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-secretpassword}
+      DB_NAME: ${DB_NAME:-taskhub_db}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-5}
+      MAX_ATTACHMENTS: ${MAX_ATTACHMENTS:-5}
+      REMINDER_DAYS: ${REMINDER_DAYS:-3}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo12345}
+      UPLOAD_DIR: /usr/src/app/uploads
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - uploads_data:/usr/src/app/uploads   # VOLUME: file lampiran, bertahan walau container dibuat ulang
+    networks: [taskhub_net]
+    depends_on:
+      db:
+        condition: service_healthy     # app baru start setelah database benar-benar siap
+
+# Jaringan privat: app dan db saling berkomunikasi lewat sini.
+networks:
+  taskhub_net:
+
+# Volume bernama dikelola Docker; lokasinya dapat dilihat dengan `docker volume inspect`.
+volumes:
+  pgdata:
+  uploads_data:

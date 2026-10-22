@@ -1,0 +1,225 @@
+<!doctype html>
+<!--
+  index.html - Kerangka halaman TaskHub (single page).
+  Semua isi dinamis (daftar tugas, dashboard, dll.) digambar oleh app.js ke elemen-elemen di bawah.
+  Aturan CSP di server melarang style/script inline, jadi gaya ada di style.css dan logika di app.js.
+-->
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TaskHub</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- ============ HALAMAN LOGIN / DAFTAR (tampil bila belum login) ============ -->
+  <main id="auth" class="auth" hidden>
+    <section class="auth-intro">
+      <h1>TaskHub</h1>
+      <p>Kelola proyek dan tugas kuliah, lampirkan file atau link, dan pantau tenggat di satu tempat. Data tiap akun terpisah.</p>
+    </section>
+    <section class="auth-card">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tabLogin" aria-selected="true">Masuk</button>
+        <button type="button" role="tab" id="tabRegister" aria-selected="false">Daftar</button>
+      </div>
+      <form id="authForm" autocomplete="on">
+        <label>Username<input id="username" name="username" required minlength="3" maxlength="30" autocomplete="username"></label>
+        <label>Password<input id="password" name="password" type="password" required minlength="8" maxlength="72" autocomplete="current-password"></label>
+        <p id="authError" class="form-error" role="alert" hidden></p>
+        <button class="btn primary" id="authSubmit" type="submit">Masuk</button>
+      </form>
+      <div class="demo">
+        <span>Akun contoh</span>
+        <button type="button" class="btn ghost" data-demo="alice">alice</button>
+        <button type="button" class="btn ghost" data-demo="bob">bob</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ APLIKASI UTAMA (tampil setelah login) ============ -->
+  <div id="app" class="app" hidden>
+
+    <!-- Sidebar: navigasi proyek dan kategori, status database, info pengguna -->
+    <aside class="sidebar">
+      <div class="brand">TaskHub</div>
+      <nav aria-label="Proyek dan kategori">
+        <button class="nav-item" id="navAll"><span class="dot all"></span><span class="label">Semua tugas</span><span class="count" id="countAll">0</span></button>
+
+        <p class="side-title">Proyek</p>
+        <div id="projList"></div>
+        <button class="nav-item" data-proj="none"><span class="dot none"></span><span class="label">Tanpa proyek</span></button>
+        <form id="projForm" class="cat-form">
+          <input id="projName" placeholder="Proyek baru" maxlength="60" aria-label="Nama proyek baru">
+          <input id="projColor" type="color" value="#1d4ed8" aria-label="Warna proyek">
+          <button class="btn small" type="submit">Tambah</button>
+        </form>
+
+        <p class="side-title">Kategori</p>
+        <div id="catList"></div>
+        <button class="nav-item" data-cat="none"><span class="dot none"></span><span class="label">Tanpa kategori</span></button>
+        <form id="catForm" class="cat-form">
+          <input id="catName" placeholder="Kategori baru" maxlength="40" aria-label="Nama kategori baru">
+          <input id="catColor" type="color" value="#0f766e" aria-label="Warna kategori">
+          <button class="btn small" type="submit">Tambah</button>
+        </form>
+      </nav>
+      <div class="side-foot">
+        <!-- Indikator ini memanggil /health tiap 10 detik -->
+        <div class="status" id="dbStatus"><span class="pulse"></span><span id="dbStatusText">Memeriksa database...</span></div>
+        <div class="who"><strong id="whoami"></strong><button class="link" id="logoutBtn" type="button">Keluar</button></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- Header: judul, pilihan tampilan, ringkasan angka, dan tombol pengingat -->
+      <header class="head">
+        <div class="title-block">
+          <h2 id="viewTitle">Dashboard</h2>
+          <div class="seg" id="viewSeg" role="group" aria-label="Tampilan">
+            <button data-view="dashboard" aria-pressed="true">Dashboard</button>
+            <button data-view="list" aria-pressed="false">Daftar</button>
+            <button data-view="board" aria-pressed="false">Papan</button>
+            <button data-view="activity" aria-pressed="false">Aktivitas</button>
+            <button data-view="trash" aria-pressed="false">Tong Sampah</button>
+          </div>
+        </div>
+        <div class="head-right">
+          <dl class="stats" id="stats"></dl>
+          <div class="notif-wrap">
+            <button class="btn" id="bellBtn" type="button" aria-expanded="false" aria-controls="notifPanel">
+              Pengingat <span class="bell-count" id="bellCount" hidden>0</span>
+            </button>
+            <!-- Panel pengingat (dropdown) -->
+            <div class="notif-panel" id="notifPanel" role="region" aria-label="Pengingat" hidden>
+              <div id="notifList"></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Area kerja: form tambah tugas + toolbar filter (disembunyikan di Dashboard dan Aktivitas) -->
+      <div id="workArea" hidden>
+        <form id="todoForm" class="composer" novalidate>
+          <input id="fTitle" name="title" placeholder="Apa yang perlu dikerjakan?" maxlength="120" aria-label="Judul tugas">
+          <div class="row">
+            <select id="fProject" name="project_id" aria-label="Proyek"></select>
+            <select id="fCategory" name="category_id" aria-label="Kategori"></select>
+            <select id="fPriority" name="priority" aria-label="Prioritas">
+              <option value="low">Prioritas rendah</option>
+              <option value="medium" selected>Prioritas sedang</option>
+              <option value="high">Prioritas tinggi</option>
+            </select>
+            <input id="fDue" name="due_date" type="date" aria-label="Tenggat">
+          </div>
+          <textarea id="fDesc" name="description" rows="2" maxlength="1000" placeholder="Catatan (opsional)" aria-label="Catatan"></textarea>
+          <!-- Lampiran: banyak file sekaligus + satu link -->
+          <div class="row">
+            <label class="file">
+              <input id="fFiles" name="files" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.csv,.md,.docx,.xlsx,.pptx,.zip">
+              <span id="fFilesLabel">Lampirkan foto atau file</span>
+            </label>
+            <input id="fLink" name="link_url" type="url" maxlength="500" placeholder="Atau tempel link (https://...)" aria-label="Link lampiran">
+            <button class="btn primary" type="submit">Tambah tugas</button>
+          </div>
+          <p id="formError" class="form-error" role="alert" hidden></p>
+        </form>
+
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="Cari tugas" aria-label="Cari tugas">
+          <div class="seg" id="statusSeg" role="group" aria-label="Status">
+            <button data-status="all" aria-pressed="true">Semua</button>
+            <button data-status="todo" aria-pressed="false">To Do</button>
+            <button data-status="in_progress" aria-pressed="false">Dikerjakan</button>
+            <button data-status="done" aria-pressed="false">Selesai</button>
+          </div>
+          <select id="priorityFilter" aria-label="Filter prioritas">
+            <option value="all">Semua prioritas</option><option value="high">Tinggi</option>
+            <option value="medium">Sedang</option><option value="low">Rendah</option>
+          </select>
+          <select id="dueFilter" aria-label="Filter tenggat">
+            <option value="all">Semua tenggat</option><option value="overdue">Terlambat</option>
+            <option value="today">Hari ini</option><option value="week">7 hari ke depan</option>
+            <option value="none">Tanpa tenggat</option>
+          </select>
+          <select id="sort" aria-label="Urutkan">
+            <option value="default">Urut: prioritas</option><option value="due">Urut: tenggat</option>
+            <option value="newest">Urut: terbaru</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Empat tampilan; hanya satu yang terlihat (diatur setView() di app.js) -->
+      <section id="dashboard" class="dash" aria-label="Dashboard"></section>
+      <ul id="todoList" class="todos" hidden></ul>
+      <section id="board" class="board" aria-label="Papan Kanban" hidden>
+        <div class="col" data-status="todo"><h3>To Do <span class="n" id="n-todo">0</span></h3><ul class="col-list" id="col-todo"></ul></div>
+        <div class="col" data-status="in_progress"><h3>Sedang dikerjakan <span class="n" id="n-in_progress">0</span></h3><ul class="col-list" id="col-in_progress"></ul></div>
+        <div class="col" data-status="done"><h3>Selesai <span class="n" id="n-done">0</span></h3><ul class="col-list" id="col-done"></ul></div>
+      </section>
+      <section id="activity" aria-label="Log aktivitas" hidden><ol id="activityList" class="activity"></ol></section>
+      <ul id="trashList" class="todos" hidden></ul>
+    </main>
+  </div>
+
+  <!-- ============ DIALOG UBAH TUGAS (+ kelola lampiran) ============ -->
+  <dialog id="editDialog">
+    <form id="editForm" novalidate>
+      <h3>Ubah tugas</h3>
+      <input id="eTitle" maxlength="120" aria-label="Judul tugas">
+      <div class="row">
+        <select id="eProject" aria-label="Proyek"></select>
+        <select id="eCategory" aria-label="Kategori"></select>
+        <select id="ePriority" aria-label="Prioritas">
+          <option value="low">Rendah</option><option value="medium">Sedang</option><option value="high">Tinggi</option>
+        </select>
+        <input id="eDue" type="date" aria-label="Tenggat">
+      </div>
+      <select id="eStatus" aria-label="Status">
+        <option value="todo">To Do</option><option value="in_progress">In Progress</option><option value="done">Done</option>
+      </select>
+      <textarea id="eDesc" rows="3" maxlength="1000" aria-label="Catatan"></textarea>
+
+      <!-- FITUR TAMBAHAN: Sub-tugas -->
+      <fieldset class="attach-box">
+        <legend>Sub-Tugas</legend>
+        <ul id="eSubtaskList" class="attach-list"></ul>
+        <div class="row">
+          <input id="eSubtaskTitle" type="text" maxlength="120" placeholder="Tambah sub-tugas baru..." aria-label="Judul sub-tugas">
+          <button type="button" class="btn small" id="eSubtaskBtn">Tambah</button>
+        </div>
+      </fieldset>
+      
+      <!-- Lampiran langsung diproses begitu tombolnya ditekan (tidak menunggu "Simpan perubahan") -->
+      <fieldset class="attach-box">
+        <legend>Lampiran</legend>
+        <ul id="eAttachList" class="attach-list"></ul>
+        <div class="row">
+          <label class="file"><input id="eFiles" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.csv,.md,.docx,.xlsx,.pptx,.zip"><span id="eFilesLabel">Pilih file</span></label>
+          <button type="button" class="btn small" id="eFilesBtn">Unggah</button>
+        </div>
+        <div class="row">
+          <input id="eLink" type="url" maxlength="500" placeholder="https://..." aria-label="Alamat link">
+          <input id="eLinkTitle" maxlength="150" placeholder="Judul link (opsional)" aria-label="Judul link">
+          <button type="button" class="btn small" id="eLinkBtn">Tambah link</button>
+        </div>
+      </fieldset>
+
+      <p id="editError" class="form-error" role="alert" hidden></p>
+      <div class="row end">
+        <button type="button" class="btn ghost" id="editCancel">Tutup</button>
+        <button type="submit" class="btn primary">Simpan perubahan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Pemutar gambar (lightbox) -->
+  <dialog id="viewer"><img id="viewerImg" alt="Lampiran"><button class="btn ghost" id="viewerClose" type="button">Tutup</button></dialog>
+
+  <!-- Pesan singkat (toast) -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
