@@ -1,5 +1,6 @@
-# Our Cloud Service App Project
-## Start the application
+# TaskHub
+
+## Start the application guide
 
 1. Open a terminal in the project folder.
 2. Copy the example environment file:
